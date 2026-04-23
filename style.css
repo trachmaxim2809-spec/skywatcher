@@ -1,0 +1,26 @@
+/* Сбрасываем все отступы и фиксируем экран */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000000; /* Максимально черный фон */
+    overflow: hidden; /* Отключение скролла страницы */
+}
+
+/* Контейнер карты на весь экран */
+#map {
+    width: 100%;
+    height: 100%;
+    background-color: #000000; /* Резервный цвет, если тайлы не подгрузятся */
+}
+
+/* Скрываем копирайты (атрибуцию) */
+.leaflet-control-attribution {
+    display: none !important;
+}
+
+/* Принудительно скрываем стандартные кнопки зума */
+.leaflet-control-zoom {
+    display: none !important;
+}
