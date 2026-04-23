@@ -1,32 +1,46 @@
 import asyncio
 import logging
+import os
+from aiohttp import web
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from handlers import start_router
 
-# Настраиваем логирование, чтобы видеть запуск бота и возможные ошибки
+# Настраиваем логирование
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# Простейший веб-сервер для Render Health Check
+async def handle(request):
+    return web.Response(text="SkyWatcher Bot is alive!")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", 8080)) # Render передает порт в переменную PORT
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    logger.info(f"Веб-сервер запущен на порту {port}")
+
 async def main():
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        logger.error("Критическая ошибка: BOT_TOKEN не установлен! Пожалуйста, укажите его в файле .env")
+        logger.error("Критическая ошибка: BOT_TOKEN не установлен!")
         return
 
-    # Инициализация бота и диспетчера
+    # Запускаем веб-сервер в фоне
+    await start_web_server()
+
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
-
-    # Регистрация всех роутеров
     dp.include_router(start_router)
 
-    # Удаляем вебхуки, если они были, и запускаем polling
     await bot.delete_webhook(drop_pending_updates=True)
-    
-    logger.info("Бот SkyWatcher успешно запущен и готов к работе!")
+    logger.info("Бот SkyWatcher успешно запущен!")
     
     try:
         await dp.start_polling(bot)
