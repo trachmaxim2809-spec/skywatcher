@@ -1,9 +1,9 @@
 .env
-venv/
+*.json
 __pycache__/
 *.pyc
-.idea/
+.venv/
+env/
 .vscode/
 node_modules/
 dist/
-build/

@@ -15,17 +15,52 @@ const map = L.map('map', {
     inertia: false,          // Отключаем инерцию скролла для большей резкости "военного" интерфейса
 });
 
-// Добавляем темные тайлы (CartoDB Dark Matter)
-// В случае отсутствия интернета или ошибки, пользователь увидит черный фон из CSS
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd'
-}).addTo(map);
+// Стили для областей
+const defaultStyle = {
+    fillColor: 'transparent',
+    color: '#333333', // Темно-серая граница
+    weight: 1,
+    fillOpacity: 0
+};
+
+const alarmStyle = {
+    fillColor: '#ff0000',
+    color: '#ff0000', // Неоново-красная граница
+    weight: 2,
+    fillOpacity: 0.3
+};
+
+// Хранилище слоев для быстрого доступа по имени области
+const regionLayers = {};
+let geoJsonLayer;
+
+// Загрузка GeoJSON и его отрисовка (один раз при старте)
+fetch('https://raw.githubusercontent.com/slawomirmatuszak/ukrainian_geodata/master/regiony.geojson')
+    .then(response => response.json())
+    .then(data => {
+        geoJsonLayer = L.geoJSON(data, {
+            style: defaultStyle,
+            onEachFeature: function (feature, layer) {
+                const regionName = feature.properties.region; // Имя из файла (напр. "Київська область")
+                // Можно нормализовать имя или сохранить как есть
+                regionLayers[regionName] = layer;
+                
+                // Настраиваем Popup для интерактивности
+                layer.bindPopup(() => {
+                    return `<b>${regionName}</b><br>Статус: З'ясовується...`;
+                });
+            }
+        }).addTo(map);
+
+        // После загрузки карты и слоев начинаем слушать Firebase
+        startFirebaseListener();
+    })
+    .catch(error => {
+        console.error('Ошибка загрузки GeoJSON:', error);
+    });
 
 // Инициализация Firebase
 const firebaseConfig = {
-    // В боевом проекте тут могут быть apiKey и projectId, но для простой 
-    // Realtime Database часто достаточно только URL (если права на чтение открыты)
     databaseURL: "https://skywatcher-3cf3f-default-rtdb.europe-west1.firebasedatabase.app"
 };
 
@@ -34,37 +69,42 @@ if (!firebase.apps.length) {
 }
 const database = firebase.database();
 
-// Прослушиваем изменения статуса регионов
-const regionsRef = database.ref('regions');
+function startFirebaseListener() {
+    const regionsRef = database.ref('regions');
 
-// child_changed срабатывает при изменении существующего региона
-regionsRef.on('child_changed', (snapshot) => {
-    const regionName = snapshot.key;
-    const isActive = snapshot.val();
-    
-    if (isActive) {
-        console.log(`ВНИМАНИЕ: Тревога в области ${regionName}`);
-        // В будущем тут будет код перекрашивания полигона на карте
-    } else {
-        console.log(`Отбой: Тревога в области ${regionName}`);
-    }
-});
+    // Функция обновления слоя карты
+    const updateRegionStatus = (regionName, isActive) => {
+        // Мы ищем точное совпадение имени в GeoJSON
+        // Если имена в базе не совпадают (напр. Firebase: "Kyiv", GeoJSON: "Київська область"), 
+        // то нужно будет написать маппинг. Пока предполагаем, что имена идентичны.
+        const layer = regionLayers[regionName];
+        
+        if (layer) {
+            // Перекрашиваем полигон
+            if (isActive) {
+                layer.setStyle(alarmStyle);
+                layer.setPopupContent(`<b>${regionName}</b><br>Статус: <span style="color:red">🔴 ТРИВОГА</span>`);
+            } else {
+                layer.setStyle(defaultStyle);
+                layer.setPopupContent(`<b>${regionName}</b><br>Статус: 🟢 Спокійно`);
+            }
+        } else {
+            console.warn(`Не найден слой для региона: ${regionName}`);
+        }
+    };
 
-// child_added срабатывает при первоначальной загрузке данных или при добавлении нового региона
-regionsRef.on('child_added', (snapshot) => {
-    const regionName = snapshot.key;
-    const isActive = snapshot.val();
-    
-    if (isActive) {
-        console.log(`ВНИМАНИЕ: Тревога в области ${regionName}`);
-    }
-});
+    // Слушатель на изменение статуса
+    regionsRef.on('child_changed', (snapshot) => {
+        const regionName = snapshot.key;
+        const isActive = snapshot.val();
+        console.log(`[Firebase Update] ${regionName}: ${isActive}`);
+        updateRegionStatus(regionName, isActive);
+    });
 
-// Функция для теста (нужна Антигравити для отладки)
-// При клике на карту мы выводим координаты в консоль
-map.on('click', function(e) {
-    const lat = e.latlng.lat;
-    const lng = e.latlng.lng;
-    
-    console.log(`Клик на карте: Координаты (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
-});
+    // Слушатель на первоначальную загрузку (чтобы покрасить те, что уже в тревоге)
+    regionsRef.on('child_added', (snapshot) => {
+        const regionName = snapshot.key;
+        const isActive = snapshot.val();
+        updateRegionStatus(regionName, isActive);
+    });
+}
