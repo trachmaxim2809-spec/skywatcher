@@ -8,12 +8,24 @@ if (window.Telegram && window.Telegram.WebApp) {
 const map = L.map('map', {
     center: [48.37, 31.16], // Географический центр Украины
     zoom: 6,                 // Стартовый масштаб
-    zoomControl: false,      // Отключаем кнопки зума (минимализм)
+    zoomControl: true,       // Разрешаем кнопки зума для картографической подложки
     attributionControl: false, // Отключаем копирайты
     zoomAnimation: true,     // Плавная анимация зума
     fadeAnimation: true,
     inertia: false,          // Отключаем инерцию скролла для большей резкости "военного" интерфейса
 });
+
+// Добавляем темные тайлы (CartoDB Dark Matter)
+// Карта с городами на фоне, под GeoJSON
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+}).addTo(map);
+
+// Создаем специальный pane (панель) для GeoJSON, чтобы они всегда были поверх подложки
+// и корректно перехватывали клики/наведения, не отдавая их нижней карте
+map.createPane('regionsPane');
+map.getPane('regionsPane').style.zIndex = 400;
 
 // Стили для областей
 const defaultStyle = {
@@ -40,6 +52,7 @@ fetch('https://raw.githubusercontent.com/slawomirmatuszak/ukrainian_geodata/mast
     .then(data => {
         geoJsonLayer = L.geoJSON(data, {
             style: defaultStyle,
+            pane: 'regionsPane', // Привязываем GeoJSON к нашей панели поверх тайлов
             onEachFeature: function (feature, layer) {
                 const regionName = feature.properties.region; // Имя из файла (напр. "Київська область")
                 // Можно нормализовать имя или сохранить как есть

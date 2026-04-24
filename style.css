@@ -20,9 +20,9 @@ body, html {
     display: none !important;
 }
 
-/* Принудительно скрываем стандартные кнопки зума */
+/* Возвращаем кнопки зума для картографической подложки */
 .leaflet-control-zoom {
-    display: none !important;
+    /* display: none !important; */
 }
 
 /* Плавный переход для полигонов */
