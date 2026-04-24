@@ -2,4 +2,6 @@ aiogram
 python-dotenv
 aiohttp
 firebase-admin
-
+telethon
+google-genai
+pydantic

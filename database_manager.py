@@ -51,3 +51,23 @@ def set_region_status(region_name: str, is_active: bool):
     except Exception as e:
         logger.error(f"Ошибка записи в Firebase (регион {region_name}): {e}")
         return False, str(e)
+
+def save_raw_observation(data: dict):
+    """Сохраняет сырые результаты парсинга (от Разведчиков) в Firebase."""
+    try:
+        if not firebase_admin._apps:
+            return False, "Firebase не инициализирован."
+        
+        from datetime import datetime
+        import uuid
+        
+        obs_id = str(uuid.uuid4())
+        data["timestamp"] = datetime.utcnow().isoformat()
+        
+        ref = db.reference(f'raw_observations/{obs_id}')
+        ref.set(data)
+        logger.info(f"Новое наблюдение сохранено: {obs_id} (Объект: {data.get('detected_object')})")
+        return True, "Успешно"
+    except Exception as e:
+        logger.error(f"Ошибка записи наблюдения в Firebase: {e}")
+        return False, str(e)
