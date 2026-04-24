@@ -34,10 +34,10 @@ async def cmd_test_alarm(message: Message):
     
     # Реверсивно (или просто) включаем тревогу
     # Для простоты: всегда ставим True.
-    success = set_region_status(region_name, True)
+    success, error_msg = set_region_status(region_name, True)
     
     if success:
         await message.answer(f"🚨 Тестовая тревога запущена для региона: {region_name}.\nОткройте карту и проверьте консоль, сообщение должно прийти мгновенно!")
     else:
-        await message.answer("❌ Ошибка при записи в Firebase. Проверьте логи сервера.")
+        await message.answer(f"❌ Ошибка при записи в Firebase:\n{error_msg}")
 

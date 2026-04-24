@@ -38,12 +38,16 @@ def init_firebase():
 def set_region_status(region_name: str, is_active: bool):
     """Меняет статус воздушной тревоги в регионе."""
     try:
+        # Проверяем, инициализирован ли Firebase
+        if not firebase_admin._apps:
+            return False, "Firebase не инициализирован. Ключи отсутствуют или неверны."
+            
         # Ссылка на узел regions/имя_региона
         ref = db.reference(f'regions/{region_name}')
         # Записываем true или false
         ref.set(is_active)
         logger.info(f"Статус региона '{region_name}' изменен на {is_active}")
-        return True
+        return True, "Успешно"
     except Exception as e:
         logger.error(f"Ошибка записи в Firebase (регион {region_name}): {e}")
-        return False
+        return False, str(e)
