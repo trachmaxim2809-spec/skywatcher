@@ -5,6 +5,7 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from handlers import start_router
+from database_manager import init_firebase
 
 # Настраиваем логирование
 logging.basicConfig(
@@ -32,7 +33,11 @@ async def main():
         logger.error("Критическая ошибка: BOT_TOKEN не установлен!")
         return
 
+    # Инициализация Firebase
+    init_firebase()
+
     # Запускаем веб-сервер в фоне
+
     await start_web_server()
 
     bot = Bot(token=BOT_TOKEN)
