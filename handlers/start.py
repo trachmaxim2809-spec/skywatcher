@@ -41,3 +41,17 @@ async def cmd_test_alarm(message: Message):
     else:
         await message.answer(f"❌ Ошибка при записи в Firebase:\n{error_msg}")
 
+@router.message(Command("test_clear"))
+async def cmd_test_clear(message: Message):
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        await message.answer("Использование: /test_clear [название региона]\nПример: /test_clear Київська область")
+        return
+        
+    region_name = parts[1].strip()
+    success, error_msg = set_region_status(region_name, False)
+    
+    if success:
+        await message.answer(f"🟢 Отбой тревоги для региона: {region_name}.\nКарта должна стать чистой.")
+    else:
+        await message.answer(f"❌ Ошибка при записи в Firebase:\n{error_msg}")
