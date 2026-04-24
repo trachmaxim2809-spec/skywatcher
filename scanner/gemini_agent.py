@@ -11,11 +11,17 @@ from config import GEMINI_API_KEYS
 
 logger = logging.getLogger(__name__)
 
+class EstimatedCoords(BaseModel):
+    lat: float
+    lon: float
+
 class GeminiObservation(BaseModel):
-    detected_object: Optional[str] = Field(description="Тип объекта: 'SHAHED', 'ROCKET', или null/None если воздушной угрозы нет. Сленг 'мопеды', 'балалайки', 'газонокосилки', 'скутеры' -> SHAHED. Сленг 'сушки', 'изделия', 'подарки', 'выходы', 'баллистика', 'х-101' -> ROCKET.")
-    inferred_coords: Optional[str] = Field(description="Географические ориентиры, населенные пункты или координаты, упомянутые в тексте")
-    direction: Optional[str] = Field(description="Направление движения объекта, например 'на северо-запад' или 'в сторону Киева'")
-    region_tag: Optional[str] = Field(description="Название области (на украинском, напр. 'Київська область'), если понятно из текста")
+    detected_object: Optional[str] = Field(description="Только: 'SHAHED', 'ROCKET', 'AVIATION' или null")
+    confidence: Optional[float] = Field(description="Уверенность 0.0-1.0. Если меньше 0.8 — верни null для detected_object")
+    region_tag: Optional[str] = Field(description="Название области или региона")
+    estimated_coords: Optional[EstimatedCoords] = Field(description="Координаты, если применимо", default=None)
+    direction_vector: Optional[str] = Field(description="Только: 'N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW' или null")
+    raw_urgency: Optional[str] = Field(description="Только: 'low', 'medium', 'high', 'critical'")
 
 # Пул клиентов Gemini
 clients = [genai.Client(api_key=key) for key in GEMINI_API_KEYS] if GEMINI_API_KEYS else []
@@ -51,11 +57,17 @@ async def analyze_message(text: str, channel_raw_name: str) -> Optional[dict]:
         return None
         
     system_instruction = (
-        "Ты военный ИИ-аналитик. Твоя задача "
-        "анализировать тексты из Telegram-каналов о воздушных угрозах в Украине. "
-        "Категория SHAHED: мопеды, балалайки, газонокосилки, скутеры. "
-        "Категория ROCKET: сушки, изделия, подарки, выходы, баллистика, х-101. "
-        "Верни строго JSON по заданной схеме. Если угрозы нет, поле detected_object пусть будет null."
+        "Ты — тактический терминал сбора данных SkyWatcher. Твоя единственная цель: извлечение координат и типов угроз из хаотичного текста.\n"
+        "ПРАВИЛО №1 (FORMAT): Ответ ДОЛЖЕН содержать ТОЛЬКО чистый JSON. Любое пояснение, текст 'Вот ваш JSON' или вежливость — это системная ошибка. Если данных нет, верни {\"detected_object\": null}.\n"
+        "ПРАВИЛО №2 (IDENTIFICATION): Угроза 'SHAHED': мопеды, балалайки, газонокосилки, скутеры, 'шах', 'герань', 'жужжание'. "
+        "Угроза 'ROCKET': сушки, изделия, подарки, выходы, баллистика, Х-101, Х-59, Калибры, 'бавовна' (если в контексте прилета), Кинжал, Искандер. "
+        "Угроза 'AVIATION': МиГ-31К, Ту-95, Ту-22, дозаправка в воздухе.\n"
+        "ПРАВИЛО №3 (GEOGRAPHY & CONTEXT): "
+        "Если указано направление (на запад), вычисли вектор движения. "
+        "Если источник в локальном контексте и пишет 'слышны взрывы', подставляй координаты региона. "
+        "Игнорируй сборы на дроны, политику и погоду. Только активные цели.\n"
+        "ПРАВИЛО №4 (STRICT OUTPUT SCHEMA): "
+        "Галлюцинации запрещены. Если уверенность ниже 80% — ставь detected_object в null."
     )
     
     async with gemini_semaphore:
