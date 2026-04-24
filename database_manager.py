@@ -7,20 +7,29 @@ logger = logging.getLogger(__name__)
 
 def init_firebase():
     """Инициализация подключения к Firebase Realtime Database."""
-    creds_path = "skywatcher-3cf3f-firebase-adminsdk-fbsvc-df0a051709.json"
+    # 1. Пытаемся взять данные из переменной окружения (для Render/Heroku)
+    fb_json_env = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
     
-    # Проверяем наличие ключа Service Account
-    if not os.path.exists(creds_path):
-        logger.error(f"Файл ключа {creds_path} не найден! Firebase не работает.")
-        return False
-        
     try:
-        # Инициализируем Admin SDK с URL нашей базы данных
-        cred = credentials.Certificate(creds_path)
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': 'https://skywatcher-3cf3f-default-rtdb.europe-west1.firebasedatabase.app'
-        })
-        logger.info("Firebase Admin SDK успешно инициализирован.")
+        if fb_json_env:
+            import json
+            # Создаем сертификат из строки JSON
+            cred_dict = json.loads(fb_json_env)
+            cred = credentials.Certificate(cred_dict)
+            logger.info("Firebase Admin SDK инициализирован из переменной окружения.")
+        else:
+            # 2. Если переменной нет, ищем локальный файл
+            creds_path = "skywatcher-3cf3f-firebase-adminsdk-fbsvc-df0a051709.json"
+            if not os.path.exists(creds_path):
+                logger.error("Ключи Firebase не найдены ни в ENV, ни в файле!")
+                return False
+            cred = credentials.Certificate(creds_path)
+            logger.info(f"Firebase Admin SDK инициализирован из файла {creds_path}")
+
+        if not firebase_admin._apps:
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': 'https://skywatcher-3cf3f-default-rtdb.europe-west1.firebasedatabase.app'
+            })
         return True
     except Exception as e:
         logger.error(f"Ошибка при инициализации Firebase: {e}")
