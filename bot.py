@@ -44,6 +44,12 @@ async def main():
     dp = Dispatcher()
     dp.include_router(start_router)
 
+    from aiogram.types import MenuButtonWebApp, WebAppInfo
+    from config import WEB_APP_URL
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(text="Карта 🛰", web_app=WebAppInfo(url=WEB_APP_URL))
+    )
+
     await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Бот SkyWatcher успешно запущен!")
     
