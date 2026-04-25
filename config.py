@@ -24,7 +24,7 @@ CHANNEL_REGION_MAP = {
     'lvivych_news': 'Львівська область',
     'dnipro_dnepr2': 'Дніпропетровська область',
     'kharkivlife': 'Харківська область',
-    'truexazaporozie': 'Запорізькая область',
+    'truexazaporozie': 'Запорізька область',
     # Глобальные каналы
     'air_force_ua': 'Вся Україна',
     'povitryana_tryvoga_official': 'Вся Україна',
