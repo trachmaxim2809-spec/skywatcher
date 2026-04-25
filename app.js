@@ -4,6 +4,28 @@ if (window.Telegram && window.Telegram.WebApp) {
     window.Telegram.WebApp.expand(); // Разворачиваем приложение на максимум
 }
 
+// Функция логирования на экран (для отладки на мобилках)
+function logMsg(text) {
+    const logDiv = document.getElementById('debug-log');
+    if (logDiv) {
+        logDiv.innerText += '\n> ' + text;
+    }
+    console.log(text);
+}
+
+logMsg("App starting...");
+
+// Функция логирования на экран (для отладки на мобилках)
+function logMsg(text) {
+    const logDiv = document.getElementById('debug-log');
+    if (logDiv) {
+        logDiv.innerText += '\n> ' + text;
+    }
+    console.log(text);
+}
+
+logMsg("System check: App starting...");
+
 // Инициализируем карту Leaflet
 const map = L.map('map', {
     center: [48.37, 31.16], // Географический центр Украины
@@ -46,43 +68,44 @@ const alarmStyle = {
 const regionLayers = {};
 let geoJsonLayer;
 
-// Загрузка GeoJSON и его отрисовка (один раз при старте)
+// Загрузка GeoJSON и его отрисовка
+logMsg("Fetching GeoJSON (Map)...");
 fetch('https://raw.githubusercontent.com/slawomirmatuszak/ukrainian_geodata/master/regiony.geojson')
-    .then(response => response.json())
+    .then(response => {
+        logMsg("GeoJSON status: " + response.status);
+        return response.json();
+    })
     .then(data => {
         geoJsonLayer = L.geoJSON(data, {
             style: defaultStyle,
-            pane: 'regionsPane', // Привязываем GeoJSON к нашей панели поверх тайлов
+            pane: 'regionsPane',
             onEachFeature: function (feature, layer) {
-                const regionName = feature.properties.region; // Имя из файла (напр. "Київська область")
-                // Можно нормализовать имя или сохранить как есть
+                const regionName = feature.properties.region;
                 regionLayers[regionName] = layer;
-                
-                // Настраиваем Popup для интерактивности
-                layer.bindPopup(() => {
-                    return `<b>${regionName}</b><br>Статус: З'ясовується...`;
-                });
+                layer.bindPopup(() => `<b>${regionName}</b><br>Статус: З'ясовується...`);
             }
         }).addTo(map);
-
-        // После загрузки карты и слоев начинаем слушать Firebase
-        startFirebaseListener();
+        logMsg("GeoJSON loaded: " + Object.keys(regionLayers).length + " regions.");
     })
-    .catch(error => {
-        console.error('Ошибка загрузки GeoJSON:', error);
-    });
+    .catch(error => logMsg("GeoJSON FAIL: " + error.message));
 
 // Инициализация Firebase
 const firebaseConfig = {
     databaseURL: "https://skywatcher-3cf3f-default-rtdb.europe-west1.firebasedatabase.app"
 };
 
+logMsg("Connecting Firebase...");
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 const database = firebase.database();
+logMsg("Firebase connected.");
+
+// Запускаем слушатель МГНОВЕННО, не дожидаясь скачивания карты
+startFirebaseListener();
 
 function startFirebaseListener() {
+    logMsg("Firebase Listener started.");
     const regionsRef = database.ref('regions');
 
     // Функция обновления слоя карты
