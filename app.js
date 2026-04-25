@@ -110,22 +110,26 @@ function startFirebaseListener() {
 
     // Функция обновления слоя карты
     const updateRegionStatus = (regionName, isActive) => {
-        // Мы ищем точное совпадение имени в GeoJSON
-        // Если имена в базе не совпадают (напр. Firebase: "Kyiv", GeoJSON: "Київська область"), 
-        // то нужно будет написать маппинг. Пока предполагаем, что имена идентичны.
-        const layer = regionLayers[regionName];
+        // Мы ищем слой. Если нет точного совпадения, ищем частичное (напр. "Харків" -> "Харківська область")
+        let layer = regionLayers[regionName];
         
+        if (!layer) {
+            // Умный поиск (нормализация)
+            const cleanInput = regionName.toLowerCase().replace('ская', '').replace('ська', '').replace(' область', '').trim();
+            const foundKey = Object.keys(regionLayers).find(key => 
+                key.toLowerCase().includes(cleanInput)
+            );
+            if (foundKey) layer = regionLayers[foundKey];
+        }
+
         if (layer) {
-            // Перекрашиваем полигон
             if (isActive) {
                 layer.setStyle(alarmStyle);
-                layer.setPopupContent(`<b>${regionName}</b><br>Статус: <span style="color:red">🔴 ТРИВОГА</span>`);
             } else {
                 layer.setStyle(defaultStyle);
-                layer.setPopupContent(`<b>${regionName}</b><br>Статус: 🟢 Спокійно`);
             }
         } else {
-            console.warn(`Не найден слой для региона: ${regionName}`);
+            console.warn(`Layer not found for: ${regionName}`);
         }
     };
 
