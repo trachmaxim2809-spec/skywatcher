@@ -51,11 +51,15 @@ def pre_filter_text(text: str) -> bool:
         
     return True
 
-async def analyze_message(text: str, channel_raw_name: str) -> Optional[dict]:
+async def analyze_message(text: str, channel_raw_name: str, region_context: str = None) -> Optional[dict]:
     """Анализирует текст и возвращает словарь с данными или None при ошибке/отсутствии угрозы."""
     if not pre_filter_text(text):
         return None
         
+    regional_prompt = ""
+    if region_context and region_context != "Вся Україна":
+        regional_prompt = f"\nПРЕДУПРЕЖДЕНИЕ: Это сообщение из проверенного источника по региону [{region_context}]. Если в тексте нет явных уточнений города, считай, что события (пролеты, взрывы) происходят именно в этом регионе. Обязательно укажи этот регион в region_tag.\n"
+
     system_instruction = (
         "Ты — тактический терминал сбора данных SkyWatcher. Твоя единственная цель: извлечение координат и типов угроз из хаотичного текста.\n"
         "ПРАВИЛО №1 (FORMAT): Ответ ДОЛЖЕН содержать ТОЛЬКО чистый JSON. Любое пояснение, текст 'Вот ваш JSON' или вежливость — это системная ошибка. Если данных нет, верни {\"detected_object\": null}.\n"
@@ -68,6 +72,7 @@ async def analyze_message(text: str, channel_raw_name: str) -> Optional[dict]:
         "Игнорируй сборы на дроны, политику и погоду. Только активные цели.\n"
         "ПРАВИЛО №4 (STRICT OUTPUT SCHEMA): "
         "Галлюцинации запрещены. Если уверенность ниже 80% — ставь detected_object в null."
+        f"{regional_prompt}"
     )
     
     async with gemini_semaphore:
@@ -97,10 +102,9 @@ async def analyze_message(text: str, channel_raw_name: str) -> Optional[dict]:
                 
             data = json.loads(response.text)
             
-            # Принудительные теги для локальных каналов
-            channel_lower = channel_raw_name.lower()
-            if "kyiv_nebo" in channel_lower or "kievreal" in channel_lower:
-                data["region_tag"] = "Київська область"
+            # Принудительно устанавливаем регион, если он был передан (чтобы ИИ не ошибся)
+            if region_context and region_context != "Вся Україна" and not data.get("region_tag"):
+                 data["region_tag"] = region_context
                 
             if not data.get("detected_object"):
                 return None # Угрозы нет, игнорим

@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from telethon import TelegramClient, events
-from config import TG_API_ID, TG_API_HASH
+from config import TG_API_ID, TG_API_HASH, CHANNEL_REGION_MAP
 from database_manager import init_firebase, set_region_status, save_raw_observation
 from scanner.gemini_agent import analyze_message
 
@@ -15,11 +15,10 @@ from scanner.gemini_agent import analyze_message
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Часовые
-PRIMARY_CHANNELS = ['air_force_ua', 'povitryana_tryvoga_official'] 
-# Разведчики
-SCOUT_CHANNELS = ['vanek_nikolaev', 'kyiv_nebo', 'kievreal1', 'war_monitor']
-ALL_CHANNELS = PRIMARY_CHANNELS + SCOUT_CHANNELS
+# Часовые (Глобальные и приоритетные каналы, способные включать тревогу)
+PRIMARY_CHANNELS = ['air_force_ua', 'povitryana_tryvoga_official', 'war_monitor'] 
+# Формируем полный список наблюдаемых каналов (Разведчики + Часовые) из конфига
+ALL_CHANNELS = list(CHANNEL_REGION_MAP.keys())
 
 session_name = "skywatcher_scanner"
 client = TelegramClient(session_name, TG_API_ID, TG_API_HASH)
@@ -35,8 +34,9 @@ async def handle_new_message(event):
         
     logger.info(f"[{channel_name}] Новое сообщение, передаю агенту на анализ...")
     
-    # 1. Запускаем анализ Gemini Agent (Pre-filter включен внутри него)
-    observation = await analyze_message(text, channel_name)
+    # 1. Запускаем анализ Gemini Agent (Pre-filter включен внутри него), передаем регион-контекст из конфига
+    region_context = CHANNEL_REGION_MAP.get(channel_name.lower())
+    observation = await analyze_message(text, channel_name, region_context=region_context)
     
     if not observation:
         logger.debug(f"[{channel_name}] Проигнорировано (нет угроз или спам)")
