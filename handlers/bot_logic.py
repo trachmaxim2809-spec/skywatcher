@@ -131,18 +131,22 @@ async def cmd_test_target(message: Message):
     from datetime import datetime, timezone
     from database_manager import update_active_target
     
+    target_type = random.choice(["SHAHED", "ROCKET", "AVIATION"])
+    speed = 180 if target_type == "SHAHED" else (900 if target_type == "AVIATION" else 2500)
+    
     target_id = f"test-{uuid.uuid4().hex[:4]}"
     test_data = {
         "id": target_id,
-        "type": random.choice(["SHAHED", "ROCKET", "AVIATION"]),
-        "lat": 48.37 + (random.uniform(-1.5, 1.5)), # Район центральной Украины
-        "lon": 31.16 + (random.uniform(-3.0, 3.0)),
+        "type": target_type,
+        "speed": speed,
+        "lat": 48.37 + (random.uniform(-0.5, 0.5)), 
+        "lon": 31.16 + (random.uniform(-0.5, 0.5)),
         "direction": random.choice(["N", "S", "W", "E", "NW", "NE", "SW", "SE"]),
         "threat_level": random.choice(["medium", "high", "critical"]),
         "last_updated": datetime.now(timezone.utc).isoformat()
     }
     update_active_target(target_id, test_data)
-    await message.answer(f"🚀 Тестовая цель {target_id} ({test_data['type']}) запущена на карту!")
+    await message.answer(f"🚀 ТЕСТ: {target_type} запущен.\nСкорость: {speed} км/ч\nКурс: {test_data['direction']}")
 
 @router.message(Command("test_alarm"))
 async def cmd_test_alarm(message: Message):
