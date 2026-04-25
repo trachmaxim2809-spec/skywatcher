@@ -5,6 +5,19 @@ import os
 
 logger = logging.getLogger(__name__)
 
+HARDCODED_ALARM_REGIONS = ["Луганська область", "Автономна Республіка Крим"]
+
+def enforce_hardcoded_regions():
+    """Жестко устанавливает красную тревогу для оккупированных территорий."""
+    try:
+        if not firebase_admin._apps:
+            return
+        ref = db.reference('regions')
+        for region in HARDCODED_ALARM_REGIONS:
+            ref.child(region).set(True)
+    except Exception as e:
+        logger.error(f"Ошибка установки жестких тревог: {e}")
+
 def init_firebase():
     """Инициализация подключения к Firebase Realtime Database."""
     # 1. Пытаемся взять данные из переменной окружения (для Render/Heroku)
@@ -30,6 +43,8 @@ def init_firebase():
             firebase_admin.initialize_app(cred, {
                 'databaseURL': 'https://skywatcher-3cf3f-default-rtdb.europe-west1.firebasedatabase.app'
             })
+            
+        enforce_hardcoded_regions()
         return True
     except Exception as e:
         logger.error(f"Ошибка при инициализации Firebase: {e}")
@@ -41,6 +56,11 @@ def set_region_status(region_name: str, is_active: bool):
         # Проверяем, инициализирован ли Firebase
         if not firebase_admin._apps:
             return False, "Firebase не инициализирован. Ключи отсутствуют или неверны."
+            
+        # Защита Hardcoded-регионов от отключения тревоги
+        if not is_active and region_name in HARDCODED_ALARM_REGIONS:
+            logger.info(f"🛡️ Отклонено снятие тревоги для {region_name} (Закон Архитектуры).")
+            return True, "Успешно (Тревога оставлена принудительно)"
             
         # Ссылка на узел regions/имя_региона
         ref = db.reference(f'regions/{region_name}')
