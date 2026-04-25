@@ -23,7 +23,6 @@ ALL_CHANNELS = list(CHANNEL_REGION_MAP.keys())
 session_name = "skywatcher_scanner"
 client = TelegramClient(session_name, TG_API_ID, TG_API_HASH)
 
-@client.on(events.NewMessage(chats=ALL_CHANNELS))
 async def handle_new_message(event):
     chat = await event.get_chat()
     channel_name = getattr(chat, 'username', None) or getattr(chat, 'title', 'unknown_channel')
@@ -70,10 +69,26 @@ async def main():
     init_firebase()
     
     logger.info("Запуск Telegram-сканера (Userbot)...")
-    # При первом запуске в консоли потребуется ввести номер телефона и код из Telegram
     await client.start()
     
-    logger.info(f"👁️ Сканер успешно запущен. Мониторинг {len(ALL_CHANNELS)} каналов активен...")
+    valid_channels = []
+    logger.info("Проверка доступности каналов из конфигурации...")
+    for ch in ALL_CHANNELS:
+        try:
+            # Пытаемся получить сущность канала
+            await client.get_entity(ch)
+            valid_channels.append(ch)
+            logger.debug(f"[OK] Канал {ch} доступен.")
+        except Exception as e:
+            logger.warning(f"[SKIP] Канал '{ch}' недоступен или не существует: {e}")
+            
+    if not valid_channels:
+        logger.error("Нет доступных каналов для мониторинга! Проверьте config.py")
+        return
+        
+    client.add_event_handler(handle_new_message, events.NewMessage(chats=valid_channels))
+    
+    logger.info(f"👁️ Сканер безупречно запущен. Мониторинг {len(valid_channels)} проверенных каналов активен...")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
