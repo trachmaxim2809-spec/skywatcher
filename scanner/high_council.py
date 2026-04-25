@@ -3,7 +3,7 @@ import logging
 import sys
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import dateutil.parser
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -113,7 +113,10 @@ async def cleanup_old_targets():
     for key, val in targets.items():
         updated_str = val.get("last_updated")
         if updated_str:
-            last_up = dateutil.parser.isoparse(updated_str).replace(tzinfo=None)
+            last_up = dateutil.parser.isoparse(updated_str)
+            if last_up.tzinfo is None:
+                last_up = last_up.replace(tzinfo=timezone.utc)
+                
             if last_up < cutoff:
                 delete_active_target(key)
                 logger.warning(f"🗑️ Цель {key} пропала с радаров (T+10). Удалил с карты.")

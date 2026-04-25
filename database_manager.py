@@ -78,11 +78,11 @@ def save_raw_observation(data: dict):
         if not firebase_admin._apps:
             return False, "Firebase не инициализирован."
         
-        from datetime import datetime
+        from datetime import datetime, timezone
         import uuid
         
         obs_id = str(uuid.uuid4())
-        data["timestamp"] = datetime.utcnow().isoformat()
+        data["timestamp"] = datetime.now(timezone.utc).isoformat()
         
         ref = db.reference(f'raw_observations/{obs_id}')
         ref.set(data)
@@ -95,20 +95,22 @@ def save_raw_observation(data: dict):
 def get_recent_raw_observations(minutes_ago: int = 5):
     """Возвращает наблюдения за последние N минут."""
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         import dateutil.parser
         
         ref = db.reference('raw_observations')
         data = ref.get() or {}
         
-        cutoff_time = datetime.utcnow() - timedelta(minutes=minutes_ago)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
         recent = {}
         for k, v in data.items():
             ts_str = v.get("timestamp")
             if ts_str:
                 obs_time = dateutil.parser.isoparse(ts_str)
-                # Убираем timezone если она есть для честного сравнения (или делаем обе naive)
-                obs_time = obs_time.replace(tzinfo=None)
+                # Если время в базе "наивное", делаем его UTC
+                if obs_time.tzinfo is None:
+                    obs_time = obs_time.replace(tzinfo=timezone.utc)
+                
                 if obs_time >= cutoff_time:
                     recent[k] = v
         return recent
