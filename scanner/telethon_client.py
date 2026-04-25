@@ -44,7 +44,6 @@ async def handle_new_message(event):
         
     # Добавляем технические метаданные
     observation["source_channel"] = channel_name
-    observation["raw_text"] = text
     
     region = observation.get("region_tag")
     
