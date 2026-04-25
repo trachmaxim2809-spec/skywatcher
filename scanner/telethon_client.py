@@ -44,7 +44,8 @@ async def handle_new_message(event):
     # Добавляем технические метаданные
     observation["source_channel"] = channel_name
     
-    region = observation.get("region_tag")
+    # ПРИОРИТЕТ: сначала берем то, что нашел ИИ. Если он не нашел — берем контекст канала.
+    region = observation.get("region_tag") or region_context
     
     # 2. Логика АВТОМАТИЧЕСКОЙ ТРЕВОГИ
     # Если разведчик доложил о начале тревоги (alarm_status = True)
