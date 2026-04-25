@@ -204,18 +204,36 @@ function startFirebaseListener() {
         // 2. Добавляем новые или обновляем существующие
         currentIds.forEach(id => {
             const tgt = data[id];
+            
+            // Определяем координаты для отрисовки. 
+            // Если это группа (is_group), создаем массив из 2-3 позиций.
+            const positions = [{ lat: tgt.lat, lon: tgt.lon }];
+            if (tgt.is_group) {
+                positions.push({ lat: tgt.lat + 0.05, lon: tgt.lon + 0.05 });
+                positions.push({ lat: tgt.lat - 0.03, lon: tgt.lon + 0.07 });
+            }
+
             if (!markers[id]) {
-                // Создание нового маркера
-                const marker = L.marker([tgt.lat, tgt.lon], {
-                    icon: createTargetIcon(tgt.type, tgt.direction)
-                }).addTo(map);
-                marker.bindPopup(`<b>Угроза: ${tgt.type}</b><br>Уровень: ${tgt.threat_level}`);
-                markers[id] = marker;
+                // Создание группы маркеров (Leaflet LayerGroup)
+                const layerGroup = L.layerGroup().addTo(map);
+                positions.forEach((pos, index) => {
+                    const m = L.marker([pos.lat, pos.lon], {
+                        icon: createTargetIcon(tgt.type, tgt.direction)
+                    }).addTo(layerGroup);
+                    if (index === 0) m.bindPopup(`<b>ГРУППА ЦЕЛЕЙ: ${tgt.type}</b>`);
+                });
+                markers[id] = layerGroup;
             } else {
-                // Мгновенное перемещение (как вы и просили, без полетов)
-                markers[id].setLatLng([tgt.lat, tgt.lon]);
-                // Обновляем иконку (на случай смены вектора)
-                markers[id].setIcon(createTargetIcon(tgt.type, tgt.direction));
+                // Обновление позиций внутри группы
+                const layerGroup = markers[id];
+                let i = 0;
+                layerGroup.eachLayer(layer => {
+                    if (positions[i]) {
+                        layer.setLatLng([positions[i].lat, positions[i].lon]);
+                        layer.setIcon(createTargetIcon(tgt.type, tgt.direction));
+                        i++;
+                    }
+                });
             }
         });
     });

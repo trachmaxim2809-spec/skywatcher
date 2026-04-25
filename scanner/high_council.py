@@ -26,6 +26,7 @@ class ActiveTarget(BaseModel):
     lon: float = Field(description="Долгота (центроид)")
     direction: Optional[str] = Field(description="Вектор движения: N, S, W, E, NW, NE, SW, SE", default=None)
     threat_level: str = Field(description="Уровень угрозы: low, medium, high, critical")
+    is_group: bool = Field(description="Установи в True, если источники сообщают о группе или нескольких целях", default=False)
 
 class HighCouncilResponse(BaseModel):
     targets: List[ActiveTarget]

@@ -23,6 +23,7 @@ class GeminiObservation(BaseModel):
     direction_vector: Optional[str] = Field(description="Только: 'N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW' или null")
     raw_urgency: Optional[str] = Field(description="Только: 'low', 'medium', 'high', 'critical'")
     alarm_status: Optional[bool] = Field(description="True если в тексте сообщение о НАЧАЛЕ или ПРЯМОМ НАЛИЧИИ тревоги, False если ОБ ОТБОЕ, null если не упоминается")
+    is_group: Optional[bool] = Field(description="True если в тексте явно указано 'группа', 'несколько', 'рой' или объекты во множественном числе", default=False)
 
 # Пул клиентов Gemini
 clients = [genai.Client(api_key=key) for key in GEMINI_API_KEYS] if GEMINI_API_KEYS else []
@@ -69,6 +70,7 @@ async def analyze_message(text: str, channel_raw_name: str, region_context: str 
         "Угроза 'AVIATION': МиГ-31К, Ту-95, Ту-22, дозаправка в воздухе.\n"
         "ПРАВИЛО №3 (GEOGRAPHY & CONTEXT): "
         "Если указано направление (на запад), вычисли вектор движения. "
+        "Если текст упоминает 'группу', 'несколько объектов' или множественное число, установи is_group в True. "
         "Если источник в локальном контексте и пишет 'слышны взрывы' или сообщает о ЛЮБОЙ активной угрозе (detected_object не null), "
         "ТЫ ОБЯЗАН в этом же ответе выставить alarm_status в True. Твоя задача — зажечь область на карте при малейшей опасности.\n"
         "Игнорируй сборы на дроны, политику и погоду. Только активные цели.\n"
