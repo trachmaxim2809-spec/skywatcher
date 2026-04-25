@@ -122,9 +122,6 @@ function startFirebaseListener() {
     });
 
     // === ФАЗА 7: ВЕРХОВНЫЙ ИИ (Отображение Целей) ===
-    const activeTargetsRef = database.ref('active_targets');
-    const activeMarkers = {}; // Храним ссылки на маркеры Leaflet
-
     // Создаем кастомный DivIcon для цели
     const createTargetIcon = (type, direction) => {
         let emoji = '🔴';
