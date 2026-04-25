@@ -45,10 +45,24 @@ def get_next_client():
 
 async def process_observations():
     """Сводит сырые данные в единые цели."""
-    raw_obs = get_recent_raw_observations(5)
-    if not raw_obs:
+    raw_obs_full = get_recent_raw_observations(5)
+    if not raw_obs_full:
         logger.debug("Нет новых донесений за 5 минут. Отдыхаем.")
         return
+
+    # Убираем raw_text, оставляя только структурированные отчеты (reports)
+    # Это экономит токены и фокусирует Верховный ИИ на тактике.
+    raw_obs = {}
+    for k, v in raw_obs_full.items():
+        report = {
+            "type": v.get("detected_object"),
+            "confidence": v.get("confidence"),
+            "region": v.get("region_tag"),
+            "coords": v.get("estimated_coords"),
+            "source": v.get("source_channel"),
+            "direction": v.get("direction_vector")
+        }
+        raw_obs[k] = report
 
     current_targets = get_active_targets()
     
