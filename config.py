@@ -25,6 +25,8 @@ CHANNEL_REGION_MAP = {
     'dnipro_dnepr2': 'Дніпропетровська область',
     'kharkivlife': 'Харківська область',
     'truexazaporozie': 'Запорізька область',
+    'truexa_donetsk': 'Донецька область',
+    'donetchanyn': 'Донецька область',
     # Глобальные каналы
     'air_force_ua': 'Вся Україна',
     'povitryana_tryvoga_official': 'Вся Україна',
