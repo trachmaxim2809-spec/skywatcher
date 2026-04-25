@@ -139,11 +139,24 @@ function startFirebaseListener() {
             emoji = '✈️';
         }
         
-        let dirHtml = direction ? `<div class="direction-indicator">${direction}</div>` : '';
+        // Маппинг направлений в градусы поворота для вектора
+        const dirAngles = {
+            'E': 0, 'SE': 45, 'S': 90, 'SW': 135,
+            'W': 180, 'NW': 225, 'N': 270, 'NE': 315
+        };
+        
+        let vectorHtml = '';
+        if (direction && dirAngles[direction] !== undefined) {
+            const angle = dirAngles[direction];
+            vectorHtml = `<div class="target-vector" style="transform: rotate(${angle}deg);"><div class="vector-line"></div></div>`;
+        }
 
         return L.divIcon({
             className: 'custom-target-icon',
-            html: `<div class="target-marker ${extraClass}">${emoji}${dirHtml}</div>`,
+            html: `<div class="target-container">
+                    ${vectorHtml}
+                    <div class="target-marker ${extraClass}">${emoji}</div>
+                   </div>`,
             iconSize: [30, 30],
             iconAnchor: [15, 15] // Центрируем
         });

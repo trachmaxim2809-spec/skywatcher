@@ -51,16 +51,40 @@ path.leaflet-interactive {
     100% { transform: scale(0.9); }
 }
 
-/* Направление движения (Текст под иконкой) */
-.direction-indicator {
-    font-size: 12px;
-    color: #ff3333;
-    font-weight: bold;
-    font-family: monospace;
+/* Контейнер для маркера и вектора, чтобы они вращались в одной точке */
+.target-container {
+    position: relative;
+    width: 30px;
+    height: 30px;
+}
+
+/* Сам вектор (линия + хвост градиента) */
+.target-vector {
     position: absolute;
-    bottom: -20px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    text-shadow: 0 0 3px black;
+    width: 100px; /* Длина вектора луча */
+    height: 2px;
+    transform-origin: 0 50%; /* Центр поворота — в начале луча (там где иконка) */
+    z-index: 900;
+}
+
+.vector-line {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(255,0,0,0) 0%, rgba(255,0,0,0.8) 100%);
+    box-shadow: 0 0 5px red;
+    border-radius: 50%;
+    animation: vector-flow 1.5s infinite linear;
+}
+
+@keyframes vector-flow {
+    0% { transform: scaleX(0.5); opacity: 0.5; }
+    50% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(0.5); opacity: 0.5; }
+}
+
+/* Плавное перемещение точки Leaflet по карте */
+.leaflet-marker-icon {
+    transition: transform 1.5s ease-out !important; /* Делаем скачки Leaflet плавными */
 }
