@@ -161,53 +161,7 @@ function startFirebaseListener() {
             iconAnchor: [15, 15] // Центрируем
         });
     };
-        const targets = {}; // Храним объекты целей и их данные для анимации
-
-    // Маппинг направлений в смещение координат (на 1 км полета)
-    const directionOffsets = {
-        'N':  { dLat: 0.0090, dLon: 0.0000 },
-        'NE': { dLat: 0.0064, dLon: 0.0090 },
-        'E':  { dLat: 0.0000, dLon: 0.0130 },
-        'SE': { dLat: -0.0064, dLon: 0.0090 },
-        'S':  { dLat: -0.0090, dLon: 0.0000 },
-        'SW': { dLat: -0.0064, dLon: -0.0090 },
-        'W':  { dLat: 0.0000, dLon: -0.0130 },
-        'NW': { dLat: 0.0064, dLon: -0.0090 }
-    };
-
-    // Функция плавной анимации полета
-    function startTargetAnimation(id) {
-        if (targets[id].animationFrame) return;
-
-        const animate = () => {
-            const now = Date.now();
-            const target = targets[id];
-            
-            if (!target || !target.marker) return;
-
-            const elapsedSec = (now - target.lastTick) / 1000;
-            target.lastTick = now;
-
-            const offset = directionOffsets[target.direction];
-            if (offset && target.speed) {
-                // Пересчитываем скорость (км/ч -> км/сек)
-                const speedPerSec = target.speed / 3600;
-                
-                // Рассчитываем новое положение
-                const newLat = target.currentLat + (offset.dLat * speedPerSec * elapsedSec);
-                const newLon = target.currentLon + (offset.dLon * speedPerSec * elapsedSec);
-
-                target.currentLat = newLat;
-                target.currentLon = newLon;
-                target.marker.setLatLng([newLat, newLon]);
-            }
-
-            target.animationFrame = requestAnimationFrame(animate);
-        };
-        
-        targets[id].lastTick = Date.now();
-        targets[id].animationFrame = requestAnimationFrame(animate);
-    }
+    const markers = {}; // Храним только маркеры
 
     // Слушатель целей
     database.ref('active_targets').on('value', (snapshot) => {
@@ -215,46 +169,27 @@ function startFirebaseListener() {
         const currentIds = Object.keys(data);
 
         // Удаляем пропавшие цели
-        Object.keys(targets).forEach(id => {
+        Object.keys(markers).forEach(id => {
             if (!data[id]) {
-                cancelAnimationFrame(targets[id].animationFrame);
-                map.removeLayer(targets[id].marker);
-                delete targets[id];
+                map.removeLayer(markers[id]);
+                delete markers[id];
             }
         });
 
         // Создаем или обновляем
         currentIds.forEach(id => {
             const tgt = data[id];
-            const isNew = !targets[id];
-
-            if (isNew) {
+            if (!markers[id]) {
+                // Создаем новый маркер
                 const marker = L.marker([tgt.lat, tgt.lon], {
                     icon: createTargetIcon(tgt.type, tgt.direction)
                 }).addTo(map);
-
-                targets[id] = {
-                    marker: marker,
-                    currentLat: tgt.lat,
-                    currentLon: tgt.lon,
-                    speed: tgt.speed || 200,
-                    direction: tgt.direction,
-                    lastTick: Date.now()
-                };
-                startTargetAnimation(id);
+                markers[id] = marker;
             } else {
-                // Плавная коррекция при обновлении данных (чтобы не было прыжков)
-                // Если разница большая (>5км), жестко переставляем
-                const dist = Math.sqrt(Math.pow(tgt.lat - targets[id].currentLat, 2) + Math.pow(tgt.lon - targets[id].currentLon, 2));
-                if (dist > 0.05) {
-                    targets[id].currentLat = tgt.lat;
-                    targets[id].currentLon = tgt.lon;
-                }
-                targets[id].speed = tgt.speed || 200;
-                targets[id].direction = tgt.direction;
-                
-                // Обновляем иконку если сменился тип или вектор
-                targets[id].marker.setIcon(createTargetIcon(tgt.type, tgt.direction));
+                // Просто двигаем маркер в новую точку
+                markers[id].setLatLng([tgt.lat, tgt.lon]);
+                // Обновляем иконку (на случай смены курса или типа)
+                markers[id].setIcon(createTargetIcon(tgt.type, tgt.direction));
             }
         });
     });
