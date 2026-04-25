@@ -8,18 +8,22 @@ router = Router()
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    # Создаем Reply-клавиатуру с кнопкой Web App
+    # Создаем Reply-клавиатуру: WebApp Карта и Кнопка отправки геолокации
     markup = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Открыть карту 🛰", web_app=WebAppInfo(url=WEB_APP_URL))]
+            [KeyboardButton(text="🗺 Открыть карту", web_app=WebAppInfo(url=WEB_APP_URL))],
+            [KeyboardButton(text="📍 Проверить угрозу рядом со мной", request_location=True)]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        persistent=True
     )
     
     await message.answer(
         "Приветствую, Командир. Я система мониторинга воздушных угроз SkyWatcher. 🛸\n\n"
-        "Для просмотра текущей обстановки в режиме реального времени нажмите кнопку ниже.",
-        reply_markup=markup
+        "Отправьте мне текстовый запрос об обстановке или нажмите кнопку <b>«Проверить угрозу»</b> внизу экрана, "
+        "чтобы я сопоставил ваши координаты с целями на радаре.",
+        reply_markup=markup,
+        parse_mode="HTML"
     )
 
 @router.message(Command("test_alarm"))

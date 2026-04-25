@@ -43,6 +43,9 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
     dp.include_router(start_router)
+    
+    from handlers.bot_logic import router as bot_logic_router
+    dp.include_router(bot_logic_router)
 
     from aiogram.types import MenuButtonWebApp, WebAppInfo
     from config import WEB_APP_URL
