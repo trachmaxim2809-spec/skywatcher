@@ -161,14 +161,15 @@ function startFirebaseListener() {
             iconAnchor: [15, 15] // Центрируем
         });
     };
-    const markers = {}; // Храним только маркеры
+    // === СЛУШАТЕЛЬ ЦЕЛЕЙ (ВЕРХОВНЫЙ ИИ) ===
+    const activeTargetsRef = database.ref('active_targets');
+    const markers = {}; // Храним только активные маркеры Leaflet
 
-    // Слушатель целей
-    database.ref('active_targets').on('value', (snapshot) => {
+    activeTargetsRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         const currentIds = Object.keys(data);
 
-        // Удаляем пропавшие цели
+        // 1. Удаляем маркеры, которых больше нет в базе
         Object.keys(markers).forEach(id => {
             if (!data[id]) {
                 map.removeLayer(markers[id]);
@@ -176,34 +177,22 @@ function startFirebaseListener() {
             }
         });
 
-        // Создаем или обновляем
+        // 2. Добавляем новые или обновляем существующие
         currentIds.forEach(id => {
             const tgt = data[id];
             if (!markers[id]) {
-                // Создаем новый маркер
+                // Создание нового маркера
                 const marker = L.marker([tgt.lat, tgt.lon], {
                     icon: createTargetIcon(tgt.type, tgt.direction)
                 }).addTo(map);
+                marker.bindPopup(`<b>Угроза: ${tgt.type}</b><br>Уровень: ${tgt.threat_level}`);
                 markers[id] = marker;
             } else {
-                // Просто двигаем маркер в новую точку
+                // Мгновенное перемещение (как вы и просили, без полетов)
                 markers[id].setLatLng([tgt.lat, tgt.lon]);
-                // Обновляем иконку (на случай смены курса или типа)
+                // Обновляем иконку (на случай смены вектора)
                 markers[id].setIcon(createTargetIcon(tgt.type, tgt.direction));
             }
         });
     });
-
-    // Удаление маркера
-    const removeTarget = (snapshot) => {
-        const tgtId = snapshot.key;
-        if (activeMarkers[tgtId]) {
-            map.removeLayer(activeMarkers[tgtId]);
-            delete activeMarkers[tgtId];
-        }
-    };
-
-    activeTargetsRef.on('child_added', renderTarget);
-    activeTargetsRef.on('child_changed', renderTarget);
-    activeTargetsRef.on('child_removed', removeTarget);
 }
