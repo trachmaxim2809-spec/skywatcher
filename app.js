@@ -185,55 +185,80 @@ function startFirebaseListener() {
             iconAnchor: [15, 15] // Центрируем
         });
     };
-    // === СЛУШАТЕЛЬ ЦЕЛЕЙ (ВЕРХОВНЫЙ ИИ) ===
+    // === СИСТЕМА ПОЛЕТА (Interpolation & Movement) ===
     const activeTargetsRef = database.ref('active_targets');
-    const markers = {}; // Храним только активные маркеры Leaflet
+    const markers = {}; // { id: { group: LayerGroup, lastData: object, animId: number } }
+
+    const getVectorOffsets = (direction) => {
+        const step = 0.0001; // Базовая скорость (градусов в сек)
+        const dirs = {
+            'N': [step, 0], 'S': [-step, 0], 'E': [0, step], 'W': [0, -step],
+            'NE': [step*0.7, step*0.7], 'NW': [step*0.7, -step*0.7],
+            'SE': [-step*0.7, step*0.7], 'SW': [-step*0.7, -step*0.7]
+        };
+        return dirs[direction] || [0, 0];
+    };
 
     activeTargetsRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         const currentIds = Object.keys(data);
 
-        // 1. Удаляем маркеры, которых больше нет в базе
+        // 1. Удаление пропавших
         Object.keys(markers).forEach(id => {
             if (!data[id]) {
-                map.removeLayer(markers[id]);
+                if (markers[id].animId) clearInterval(markers[id].animId);
+                map.removeLayer(markers[id].group);
                 delete markers[id];
             }
         });
 
-        // 2. Добавляем новые или обновляем существующие
+        // 2. Обновление / Создание
         currentIds.forEach(id => {
             const tgt = data[id];
             
-            // Определяем координаты для отрисовки. 
-            // Если это группа (is_group), создаем массив из 2-3 позиций.
-            const positions = [{ lat: tgt.lat, lon: tgt.lon }];
-            if (tgt.is_group) {
-                positions.push({ lat: tgt.lat + 0.05, lon: tgt.lon + 0.05 });
-                positions.push({ lat: tgt.lat - 0.03, lon: tgt.lon + 0.07 });
-            }
-
             if (!markers[id]) {
-                // Создание группы маркеров (Leaflet LayerGroup)
                 const layerGroup = L.layerGroup().addTo(map);
+                const positions = [{ lat: tgt.lat, lon: tgt.lon }];
+                if (tgt.is_group) {
+                    positions.push({ lat: tgt.lat + 0.05, lon: tgt.lon + 0.05 });
+                    positions.push({ lat: tgt.lat - 0.03, lon: tgt.lon + 0.07 });
+                }
+
+                const markerObjs = [];
                 positions.forEach((pos, index) => {
                     const m = L.marker([pos.lat, pos.lon], {
                         icon: createTargetIcon(tgt.type, tgt.direction)
                     }).addTo(layerGroup);
-                    if (index === 0) m.bindPopup(`<b>ГРУППА ЦЕЛЕЙ: ${tgt.type}</b>`);
+                    if (index === 0) m.bindPopup(`<b>ЦЕЛЬ: ${tgt.type}</b>`);
+                    markerObjs.push(m);
                 });
-                markers[id] = layerGroup;
+
+                // Запускаем цикл анимации для этого маркера
+                const animId = setInterval(() => {
+                    const [dLat, dLon] = getVectorOffsets(tgt.direction);
+                    markerObjs.forEach(m => {
+                        const cur = m.getLatLng();
+                        m.setLatLng([cur.lat + dLat, cur.lng + dLon]);
+                    });
+                }, 1000); // Обновляем позицию каждую секунду
+
+                markers[id] = { group: layerGroup, markerObjs, animId, lastData: tgt };
             } else {
-                // Обновление позиций внутри группы
-                const layerGroup = markers[id];
-                let i = 0;
-                layerGroup.eachLayer(layer => {
-                    if (positions[i]) {
-                        layer.setLatLng([positions[i].lat, positions[i].lon]);
-                        layer.setIcon(createTargetIcon(tgt.type, tgt.direction));
-                        i++;
+                // Если данные обновились в базе — «подтягиваем» позицию к реальности
+                const mData = markers[id];
+                const positions = [{ lat: tgt.lat, lon: tgt.lon }];
+                if (tgt.is_group) {
+                    positions.push({ lat: tgt.lat + 0.05, lon: tgt.lon + 0.05 });
+                    positions.push({ lat: tgt.lat - 0.03, lon: tgt.lon + 0.07 });
+                }
+                
+                positions.forEach((pos, idx) => {
+                    if (mData.markerObjs[idx]) {
+                        mData.markerObjs[idx].setLatLng([pos.lat, pos.lon]);
+                        mData.markerObjs[idx].setIcon(createTargetIcon(tgt.type, tgt.direction));
                     }
                 });
+                mData.lastData = tgt;
             }
         });
     });
