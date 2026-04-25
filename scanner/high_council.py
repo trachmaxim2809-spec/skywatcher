@@ -57,7 +57,9 @@ async def process_observations():
         "Ты — High Council AI (Командующий ПВО). Твоя задача: агрегация тактических ОТЧЕТОВ от 18 парсеров.\n"
         "ВАЖНО: Ты не видишь исходные сообщения, только структурированные данные (тип, координаты, уверенность, канал).\n"
         "ПРАВИЛО 1 (Слияние): Если несколько ОТЧЕТОВ описывают один объект (радиус 30-50 км), объедини их. "
-        "ПРАВИЛО 2 (Двойной контроль): Если цель упомянута только в ОДНОМ отчете (source_channel), игнорируй её. Нужно подтверждение минимум от двух источников.\n"
+        "ПРАВИЛО 2 (Верификация): Если цель упомянута только в ОДНОМ отчете, она должна быть проигнорирована. "
+        "ИСКЛЮЧЕНИЕ: Если источником отчета (source_channel) является официальный или высокодоверенный канал (например, air_force_ua, war_monitor, povitryana_tryvoga_official), "
+        "цель подтверждается НЕМЕДЛЕННО и выводится на карту.\n"
         "ПРАВИЛО 3 (ID Persistence): Сохраняй старые ID из CURRENT_TARGETS при обновлении позиций.\n"
         "ВЕРНИ ТОЛЬКО JSON список активных целей."
     )
@@ -92,7 +94,7 @@ async def process_observations():
             data = json.loads(response.text)
             new_targets = data.get("targets", [])
             
-            now_iso = datetime.utcnow().isoformat()
+            now_iso = datetime.now(timezone.utc).isoformat()
             
             # Сохраняем в базу новые и обновленные
             for tgt in new_targets:
@@ -107,7 +109,7 @@ async def process_observations():
 async def cleanup_old_targets():
     """Удаляет цели, которые не подтверждались более 10 минут."""
     targets = get_active_targets()
-    cutoff = datetime.utcnow() - timedelta(minutes=10)
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
     
     for key, val in targets.items():
         updated_str = val.get("last_updated")
