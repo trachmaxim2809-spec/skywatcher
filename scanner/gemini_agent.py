@@ -22,6 +22,7 @@ class GeminiObservation(BaseModel):
     estimated_coords: Optional[EstimatedCoords] = Field(description="Координаты, если применимо", default=None)
     direction_vector: Optional[str] = Field(description="Только: 'N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW' или null")
     raw_urgency: Optional[str] = Field(description="Только: 'low', 'medium', 'high', 'critical'")
+    alarm_status: Optional[bool] = Field(description="True если в тексте сообщение о НАЧАЛЕ или ПРЯМОМ НАЛИЧИИ тревоги, False если ОБ ОТБОЕ, null если не упоминается")
 
 # Пул клиентов Gemini
 clients = [genai.Client(api_key=key) for key in GEMINI_API_KEYS] if GEMINI_API_KEYS else []
@@ -106,9 +107,12 @@ async def analyze_message(text: str, channel_raw_name: str, region_context: str 
             if region_context and region_context != "Вся Україна" and not data.get("region_tag"):
                  data["region_tag"] = region_context
                 
-            if not data.get("detected_object"):
+            obj = data.get("detected_object")
+            if not obj:
+                logger.info(f"🤖 Вердикт ИИ: Объектов не обнаружено (Шум/Спам).")
                 return None # Угрозы нет, игнорим
                 
+            logger.warning(f"🚀 Вердикт ИИ: ОБНАРУЖЕН {obj}! (Confidence: {data.get('confidence')})")
             return data
             
         except Exception as e:

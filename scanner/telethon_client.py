@@ -12,7 +12,7 @@ from database_manager import init_firebase, set_region_status, save_raw_observat
 from scanner.gemini_agent import analyze_message
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Часовые (Глобальные и приоритетные каналы, способные включать тревогу)
@@ -46,18 +46,34 @@ async def handle_new_message(event):
     
     region = observation.get("region_tag")
     
-    # 2. Логика "ВЫСШЕГО ДОПУСКА" (Часовые)
-    # Если это официальный канал и мы смогли вычленить регион — сразу бьем тревогу на карте!
+    # 2. Логика АВТОМАТИЧЕСКОЙ ТРЕВОГИ
+    # Если разведчик доложил о начале тревоги (alarm_status = True)
+    alarm_reported = observation.get("alarm_status")
+    
+    if region:
+        if alarm_reported is True:
+            logger.warning(f"🚨 ОБНАРУЖЕНА ТРЕВОГА: {channel_name} доложил о начале тревоги в {region}!")
+            set_region_status(region, True)
+        elif alarm_reported is False:
+            logger.info(f"🟢 ОТБОЙ: {channel_name} доложил об окончании тревоги в {region}.")
+            set_region_status(region, False)
+            
+    # Дополнительно: Если это официальный канал ("Часовой")
     is_primary = any(p_chan.lower() in channel_name.lower() for p_chan in PRIMARY_CHANNELS)
-    
-    if is_primary and region:
-        logger.warning(f"🚨 ЧАСОВОЙ ({channel_name}) доложил об угрозе в {region}! Включаю тревогу на карте!")
+    if is_primary and region and observation.get("detected_object"):
+        logger.warning(f"🚨 ЧАСОВОЙ ({channel_name}) зафиксировал угрозу в {region}! Включаю тревогу!")
         set_region_status(region, True)
-    else:
-        logger.info(f"🕵️ РАЗВЕДЧИК ({channel_name}) доложил об активности (Объект: {observation.get('detected_object')}). Передаю в raw_observations.")
-    
-    # 3. Сохраняем сырые сканированные данные для Высших Агентов (в Части 7)
+
+    # 3. Сохраняем сырые сканированные данные для Высшего Совета
     save_raw_observation(observation)
+
+# === ОТЛАДОЧНЫЙ ЛОУДЕР (Ловим всё для проверки связи) ===
+@client.on(events.NewMessage)
+async def debug_all_messages(event):
+    chat = await event.get_chat()
+    chat_title = getattr(chat, 'title', 'Unknown')
+    username = getattr(chat, 'username', 'NoUsername')
+    logger.debug(f"[DEBUG RAW] Сообщение из: {chat_title} (@{username})")
 
 
 async def main():
