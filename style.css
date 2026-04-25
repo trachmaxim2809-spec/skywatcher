@@ -29,3 +29,38 @@ body, html {
 path.leaflet-interactive {
     transition: fill 0.5s ease-in-out, fill-opacity 0.5s ease-in-out, stroke 0.5s ease-in-out !important;
 }
+
+/* Стили для маркеров Целей (Эмодзи) */
+.target-marker {
+    font-size: 28px;
+    text-align: center;
+    line-height: 28px;
+    filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8));
+    animation: target-pulse 1.5s infinite;
+    position: relative;
+    z-index: 1000 !important;
+}
+
+.shahed-marker { /* Для мопедов можно желтое свечение */
+    filter: drop-shadow(0 0 10px rgba(255, 165, 0, 0.8));
+}
+
+@keyframes target-pulse {
+    0% { transform: scale(0.9); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(0.9); }
+}
+
+/* Направление движения (Текст под иконкой) */
+.direction-indicator {
+    font-size: 12px;
+    color: #ff3333;
+    font-weight: bold;
+    font-family: monospace;
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    text-shadow: 0 0 3px black;
+}

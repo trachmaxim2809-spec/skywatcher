@@ -120,4 +120,69 @@ function startFirebaseListener() {
         const isActive = snapshot.val();
         updateRegionStatus(regionName, isActive);
     });
+
+    // === ФАЗА 7: ВЕРХОВНЫЙ ИИ (Отображение Целей) ===
+    const activeTargetsRef = database.ref('active_targets');
+    const activeMarkers = {}; // Храним ссылки на маркеры Leaflet
+
+    // Создаем кастомный DivIcon для цели
+    const createTargetIcon = (type, direction) => {
+        let emoji = '🔴';
+        let extraClass = '';
+        
+        if (type === 'SHAHED') {
+            emoji = '🛸';
+            extraClass = 'shahed-marker';
+        } else if (type === 'ROCKET') {
+            emoji = '🚀';
+        } else if (type === 'AVIATION') {
+            emoji = '✈️';
+        }
+        
+        let dirHtml = direction ? `<div class="direction-indicator">${direction}</div>` : '';
+
+        return L.divIcon({
+            className: 'custom-target-icon',
+            html: `<div class="target-marker ${extraClass}">${emoji}${dirHtml}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15] // Центрируем
+        });
+    };
+
+    // Отрисовка или обновление маркера
+    const renderTarget = (snapshot) => {
+        const tgt = snapshot.val();
+        const tgtId = snapshot.key;
+        if (!tgt || !tgt.lat || !tgt.lon) return;
+
+        const latLng = [tgt.lat, tgt.lon];
+        
+        if (activeMarkers[tgtId]) {
+            // Обновляем позицию и иконку
+            activeMarkers[tgtId].setLatLng(latLng);
+            activeMarkers[tgtId].setIcon(createTargetIcon(tgt.type, tgt.direction));
+            activeMarkers[tgtId].getPopup().setContent(`<b>Угроза: ${tgt.type}</b><br>Уровень: ${tgt.threat_level}`);
+        } else {
+            // Создаем новый
+            const marker = L.marker(latLng, {
+                icon: createTargetIcon(tgt.type, tgt.direction)
+            }).addTo(map);
+            
+            marker.bindPopup(`<b>Угроза: ${tgt.type}</b><br>Уровень: ${tgt.threat_level}`);
+            activeMarkers[tgtId] = marker;
+        }
+    };
+
+    // Удаление маркера
+    const removeTarget = (snapshot) => {
+        const tgtId = snapshot.key;
+        if (activeMarkers[tgtId]) {
+            map.removeLayer(activeMarkers[tgtId]);
+            delete activeMarkers[tgtId];
+        }
+    };
+
+    activeTargetsRef.on('child_added', renderTarget);
+    activeTargetsRef.on('child_changed', renderTarget);
+    activeTargetsRef.on('child_removed', removeTarget);
 }

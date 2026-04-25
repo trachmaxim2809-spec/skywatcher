@@ -71,3 +71,56 @@ def save_raw_observation(data: dict):
     except Exception as e:
         logger.error(f"Ошибка записи наблюдения в Firebase: {e}")
         return False, str(e)
+
+def get_recent_raw_observations(minutes_ago: int = 5):
+    """Возвращает наблюдения за последние N минут."""
+    try:
+        from datetime import datetime, timedelta
+        import dateutil.parser
+        
+        ref = db.reference('raw_observations')
+        data = ref.get() or {}
+        
+        cutoff_time = datetime.utcnow() - timedelta(minutes=minutes_ago)
+        recent = {}
+        for k, v in data.items():
+            ts_str = v.get("timestamp")
+            if ts_str:
+                obs_time = dateutil.parser.isoparse(ts_str)
+                # Убираем timezone если она есть для честного сравнения (или делаем обе naive)
+                obs_time = obs_time.replace(tzinfo=None)
+                if obs_time >= cutoff_time:
+                    recent[k] = v
+        return recent
+    except Exception as e:
+        logger.error(f"Ошибка чтения raw_observations: {e}")
+        return {}
+
+def get_active_targets():
+    """Возвращает текущие активные цели."""
+    try:
+        ref = db.reference('active_targets')
+        return ref.get() or {}
+    except Exception as e:
+        logger.error(f"Ошибка чтения active_targets: {e}")
+        return {}
+
+def update_active_target(target_id: str, data: dict):
+    """Обновляет или добавляет активную цель."""
+    try:
+        ref = db.reference(f'active_targets/{target_id}')
+        ref.set(data)
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка обновления active_targets: {e}")
+        return False
+
+def delete_active_target(target_id: str):
+    """Удаляет активную цель (очистка)."""
+    try:
+        ref = db.reference(f'active_targets/{target_id}')
+        ref.delete()
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка удаления active_targets: {e}")
+        return False
